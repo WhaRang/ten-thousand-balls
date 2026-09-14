@@ -1,0 +1,20 @@
+{
+    "name": "SdfBalls.Editor",
+    "rootNamespace": "SdfBalls.Editor",
+    "references": [
+        "SdfBalls.Runtime",
+        "Unity.Burst",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
