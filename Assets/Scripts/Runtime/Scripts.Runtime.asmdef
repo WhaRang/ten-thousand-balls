@@ -1,14 +1,11 @@
 {
-    "name": "SdfBalls.Editor",
-    "rootNamespace": "SdfBalls.Editor",
+    "name": "Scripts.Runtime",
+    "rootNamespace": "Scripts",
     "references": [
-        "SdfBalls.Runtime",
         "Unity.Burst",
         "Unity.Mathematics"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
