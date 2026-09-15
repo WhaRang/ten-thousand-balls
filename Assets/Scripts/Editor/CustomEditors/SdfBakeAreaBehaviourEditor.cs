@@ -10,7 +10,7 @@ namespace Scripts.Editor.CustomEditors
 {
     /// <summary>
     /// Inspector for the bake area: the default fields, a readout of the grid those fields
-    /// describe, and the two buttons that make up the whole bake workflow.
+    /// describe, and the three buttons that make up the whole bake workflow: fit, bake, verify.
     /// </summary>
     [CustomEditor(typeof(SdfBakeAreaBehaviour))]
     internal sealed class SdfBakeAreaBehaviourEditor : UnityEditor.Editor
@@ -69,6 +69,16 @@ namespace Scripts.Editor.CustomEditors
                 if (GUILayout.Button("Bake"))
                 {
                     SdfBaker.Bake(area);
+                }
+
+                // Reads the asset and the scene, writes nothing: safe whenever there is a bake.
+                bool canVerify = area.Output != null && area.Output.IsBaked;
+                using (new EditorGUI.DisabledScope(!canVerify))
+                {
+                    if (GUILayout.Button("Verify Field"))
+                    {
+                        SdfBakedFieldVerifier.Verify(area);
+                    }
                 }
             }
         }

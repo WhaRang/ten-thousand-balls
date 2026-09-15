@@ -1,4 +1,5 @@
 using Scripts.Runtime.Data;
+using Scripts.Runtime.Utils.Extensions;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;

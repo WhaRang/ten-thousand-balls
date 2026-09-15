@@ -5,6 +5,7 @@ using Scripts.Editor.Jobs;
 using Scripts.Runtime.Data;
 using Scripts.Runtime.Mono;
 using Scripts.Runtime.ScriptableObjects;
+using Scripts.Runtime.Utils.Extensions;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;

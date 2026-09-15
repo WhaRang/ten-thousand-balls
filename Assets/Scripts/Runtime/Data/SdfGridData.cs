@@ -33,7 +33,7 @@ namespace Scripts.Runtime.Data
 
         /// <summary>Total number of samples in the volume.</summary>
         public int SampleCount => Resolution.x * Resolution.y * Resolution.z;
-
+        
         /// <summary>
         /// Builds a grid that covers at least the given world bounds. The resolution is rounded
         /// up so the last sample lands on or just past the requested max; the bounds are never
@@ -58,34 +58,6 @@ namespace Scripts.Runtime.Data
                 CellSize = cellSize,
                 Resolution = math.max(resolution, 2),
             };
-        }
-
-        /// <summary>Position of the point in continuous grid units, where integers are sample positions.</summary>
-        public float3 WorldToGrid(float3 worldPoint)
-        {
-            return (worldPoint - BoundsMin) / CellSize;
-        }
-
-        /// <summary>World position of a sample.</summary>
-        public float3 SampleToWorld(int3 sample)
-        {
-            return BoundsMin + (float3)sample * CellSize;
-        }
-
-        /// <summary>Index of a sample in the flat array.</summary>
-        public int Flatten(int3 sample)
-        {
-            return sample.x + Resolution.x * (sample.y + Resolution.y * sample.z);
-        }
-
-        /// <summary>Inverse of <see cref="Flatten"/>. Used by the bake job, which iterates flat indices.</summary>
-        public int3 Unflatten(int flatIndex)
-        {
-            int x = flatIndex % Resolution.x;
-            int rest = flatIndex / Resolution.x;
-            int y = rest % Resolution.y;
-            int z = rest / Resolution.y;
-            return new int3(x, y, z);
         }
     }
 }

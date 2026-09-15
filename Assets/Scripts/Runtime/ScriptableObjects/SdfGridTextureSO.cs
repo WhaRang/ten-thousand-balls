@@ -13,7 +13,7 @@ namespace Scripts.Runtime.ScriptableObjects
     /// </summary>
     public sealed class SdfGridTextureSO : ScriptableObject
     {
-        [FormerlySerializedAs("grid")] [SerializeField]
+        [SerializeField]
         private SdfGridData gridData;
 
         [SerializeField]
