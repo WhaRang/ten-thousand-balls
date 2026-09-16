@@ -153,6 +153,56 @@ Transform:
   - {fileID: 707053836}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &183488468
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 183488470}
+  - component: {fileID: 183488469}
+  m_Layer: 0
+  m_Name: BallRenderer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &183488469
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 183488468}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59ea91787515c914e8451ec0db18ba67, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Scripts.Runtime::Scripts.Runtime.Rendering.Mono.BallRendererBehaviour
+  simulation: {fileID: 692984959}
+  material: {fileID: 2100000, guid: 25c6427f9d684b545a063da9920aa2f0, type: 2}
+  subdivisions: 1
+  drawBounds:
+    m_Center: {x: 0, y: 5, z: 0}
+    m_Extent: {x: 15, y: 15, z: 15}
+--- !u!4 &183488470
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 183488468}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -552,7 +602,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Scripts.Runtime::Scripts.Runtime.Physics.Mono.BallPhysicsSimulationBehaviour
   sdfAsset: {fileID: 11400000, guid: f15f14c154529db41a95c32ee2f8637c, type: 2}
-  ballCount: 10000
+  ballCount: 40000
   seed: 1
   physicsSettings:
     Radius: 0.06
@@ -568,13 +618,13 @@ MonoBehaviour:
     ContactEpsilon: 0.001
     MaxTraceSteps: 4
     SpawnMin:
-      x: -4.5
+      x: -4.8
       y: 6
-      z: -4.5
+      z: -4.8
     SpawnMax:
-      x: 4.5
+      x: 4.8
       y: 10
-      z: 4.5
+      z: 4.8
     KillHeight: -1
 --- !u!4 &692984960
 Transform:
@@ -585,7 +635,7 @@ Transform:
   m_GameObject: {fileID: 692984958}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.17, y: 0, z: 0.76732}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -851,3 +901,4 @@ SceneRoots:
   - {fileID: 44746191}
   - {fileID: 1395726591}
   - {fileID: 692984960}
+  - {fileID: 183488470}

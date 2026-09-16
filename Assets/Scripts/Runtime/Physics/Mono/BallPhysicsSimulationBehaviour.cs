@@ -31,9 +31,6 @@ namespace Scripts.Runtime.Physics.Mono
         /// </summary>
         private const int JobBatchSize = 64;
 
-        /// <summary>Temporary, Phase 3 only: how many balls the gizmo draw shows.</summary>
-        private const int GizmoBallCount = 300;
-
         [SerializeField]
         private SdfGridTextureSO sdfAsset;
 
@@ -67,10 +64,12 @@ namespace Scripts.Runtime.Physics.Mono
         public double LastJobMilliseconds { get; private set; }
 
         /// <summary>
-        /// Current positions. Valid to read between LateUpdate and the next Update, i.e. after the
-        /// job has completed and before the next one is scheduled.
+        /// Current positions, for the renderer to upload. Valid to read between LateUpdate and the next
+        /// Update, i.e. after the job has completed and before the next one is scheduled. Exposed as
+        /// the array itself because GraphicsBuffer.SetData takes a NativeArray, not a ReadOnly view;
+        /// callers must treat it as read-only.
         /// </summary>
-        public NativeArray<float3>.ReadOnly Positions => positions.AsReadOnly();
+        public NativeArray<float3> Positions => positions;
 
         private void Start()
         {
@@ -184,7 +183,6 @@ namespace Scripts.Runtime.Physics.Mono
         private void OnDrawGizmos()
         {
             DrawSpawnAndKillGizmos();
-            DrawBallGizmos();
         }
 
         /// <summary>
@@ -211,24 +209,6 @@ namespace Scripts.Runtime.Physics.Mono
             Gizmos.DrawCube(killCentre, killSize);
             Gizmos.color = new Color(1f, 0.2f, 0.2f, 0.4f);
             Gizmos.DrawWireCube(killCentre, killSize);
-        }
-
-        // ----- Phase 3 verification only; removed in Phase 4 when the real renderer exists. -----
-
-        private void DrawBallGizmos()
-        {
-            if (!isRunning)
-            {
-                return;
-            }
-
-            physicsJob.Complete(); // gizmos may draw while the job is in flight; never read a live array
-            Gizmos.color = new Color(0.3f, 0.6f, 1f);
-            int shown = math.min(GizmoBallCount, ballCount);
-            for (int i = 0; i < shown; i++)
-            {
-                Gizmos.DrawSphere(positions[i], physicsSettings.Radius);
-            }
         }
 
         /// <summary>
