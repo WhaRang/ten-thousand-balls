@@ -1,7 +1,8 @@
-using Scripts.Editor.Utils;
-using Scripts.Runtime.Data;
-using Scripts.Runtime.Mono;
-using Scripts.Runtime.ScriptableObjects;
+using Scripts.Editor.Sdf.Debugging;
+using Scripts.Editor.Sdf.Utils;
+using Scripts.Runtime.Sdf.Data;
+using Scripts.Runtime.Sdf.Mono;
+using Scripts.Runtime.Sdf.ScriptableObjects;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;

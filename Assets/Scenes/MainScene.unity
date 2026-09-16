@@ -522,6 +522,75 @@ MonoBehaviour:
   m_EditorClassIdentifier: Scripts.Runtime::Scripts.Runtime.Mono.SdfShapeBehaviour
   primitive: 0
   planeThickness: 0.5
+--- !u!1 &692984958
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 692984960}
+  - component: {fileID: 692984959}
+  m_Layer: 0
+  m_Name: BallPhysicsSimulation
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &692984959
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 692984958}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3dd94e8912538aa4187e3663b25eb62e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Scripts.Runtime::Scripts.Runtime.Physics.Mono.BallPhysicsSimulationBehaviour
+  sdfAsset: {fileID: 11400000, guid: f15f14c154529db41a95c32ee2f8637c, type: 2}
+  ballCount: 10000
+  seed: 1
+  physicsSettings:
+    Radius: 0.06
+    Gravity:
+      x: 0
+      y: -9.81
+      z: 0
+    FixedDeltaTime: 0.008333334
+    MaxStepsPerFrame: 4
+    Restitution: 0.3
+    BounceThreshold: 0.5
+    Friction: 0.4
+    ContactEpsilon: 0.001
+    MaxTraceSteps: 4
+    SpawnMin:
+      x: -4.5
+      y: 6
+      z: -4.5
+    SpawnMax:
+      x: 4.5
+      y: 10
+      z: 4.5
+    KillHeight: -1
+--- !u!4 &692984960
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 692984958}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3.17, y: 0, z: 0.76732}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &707053835
 GameObject:
   m_ObjectHideFlags: 0
@@ -571,7 +640,7 @@ MonoBehaviour:
     m_Extent: {x: 5.5, y: 1.75, z: 5.5}
   cellSize: 0.07
   fitMargin: 0.5
-  output: {fileID: 0}
+  output: {fileID: 11400000, guid: f15f14c154529db41a95c32ee2f8637c, type: 2}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -616,6 +685,52 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1395726589
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1395726591}
+  - component: {fileID: 1395726590}
+  m_Layer: 0
+  m_Name: ProbeBehaviour
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1395726590
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1395726589}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f30beb94200649244b7048695c67fdbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Scripts.Runtime::Scripts.Runtime.Debugging.SdfProbeBehaviour
+  field: {fileID: 11400000, guid: f15f14c154529db41a95c32ee2f8637c, type: 2}
+  markerRadius: 0.1
+--- !u!4 &1395726591
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1395726589}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1.638, y: 1.132, z: -0.415}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -734,3 +849,5 @@ SceneRoots:
   - {fileID: 410087041}
   - {fileID: 832575519}
   - {fileID: 44746191}
+  - {fileID: 1395726591}
+  - {fileID: 692984960}
