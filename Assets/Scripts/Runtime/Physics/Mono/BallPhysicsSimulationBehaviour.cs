@@ -63,6 +63,14 @@ namespace Scripts.Runtime.Physics.Mono
         /// <summary>Wall time from scheduling the job to its completion, for the on-screen readout.</summary>
         public double LastJobMilliseconds { get; private set; }
 
+        /// <summary>Fixed substeps taken last frame; 0 when the frame was faster than the fixed rate.</summary>
+        public int LastStepCount { get; private set; }
+
+        public float FixedDeltaTime => physicsSettings.FixedDeltaTime;
+
+        /// <summary>The loaded field's grid, for the on-screen readout.</summary>
+        public SdfGridData FieldGrid => field.Grid;
+
         /// <summary>
         /// Current positions, for the renderer to upload. Valid to read between LateUpdate and the next
         /// Update, i.e. after the job has completed and before the next one is scheduled. Exposed as
@@ -96,6 +104,7 @@ namespace Scripts.Runtime.Physics.Mono
             timeDebt += Time.deltaTime;
             int steps = math.min((int)(timeDebt / physicsSettings.FixedDeltaTime), physicsSettings.MaxStepsPerFrame);
             timeDebt = math.min(timeDebt - steps * physicsSettings.FixedDeltaTime, physicsSettings.FixedDeltaTime);
+            LastStepCount = steps;
             
             if (steps == 0)
             {
