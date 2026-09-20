@@ -4,12 +4,6 @@ using UnityEngine;
 
 namespace Scripts.Runtime.Physics.Data
 {
-    /// <summary>
-    /// Every number the simulation job needs, in one serializable block: edited in the inspector,
-    /// copied by value into the job each frame. Plain floats and float3s only, so Burst can hold it.
-    ///
-    /// Ball count and random seed are deliberately not here: they describe a run, not the physics.
-    /// </summary>
     [Serializable]
     public struct BallPhysicsSettingsData
     {
@@ -59,7 +53,7 @@ namespace Scripts.Runtime.Physics.Data
         [Tooltip("A ball whose centre drops below this height is respawned.")]
         public float KillHeight;
 
-        public static BallPhysicsSettingsData Default => new BallPhysicsSettingsData
+        public static BallPhysicsSettingsData Default => new()
         {
             Radius = 0.06f,
             Gravity = new float3(0f, -9.81f, 0f),
@@ -90,11 +84,11 @@ namespace Scripts.Runtime.Physics.Data
             ContactEpsilon = math.max(ContactEpsilon, 0f);
             MaxTraceSteps = math.clamp(MaxTraceSteps, 1, 8);
 
-            // A box with min above max would make NextFloat3 misbehave; sort the corners.
-            float3 lo = math.min(SpawnMin, SpawnMax);
-            float3 hi = math.max(SpawnMin, SpawnMax);
-            SpawnMin = lo;
-            SpawnMax = hi;
+            var low = math.min(SpawnMin, SpawnMax);
+            var high = math.max(SpawnMin, SpawnMax);
+            
+            SpawnMin = low;
+            SpawnMax = high;
         }
     }
 }

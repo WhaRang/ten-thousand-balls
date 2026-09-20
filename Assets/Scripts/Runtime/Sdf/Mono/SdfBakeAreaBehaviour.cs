@@ -36,56 +36,51 @@ namespace Scripts.Runtime.Sdf.Mono
         [Tooltip("Asset that receives the bake. Created by the baker if empty.")]
         private SdfGridTextureSO output;
 
-        public Bounds Bounds => bounds;
-        public float CellSize => cellSize;
         public SdfGridTextureSO Output => output;
 
-        /// <summary>The grid these settings describe. Derived, never stored, so it cannot go stale.</summary>
         public SdfGridData GridData => SdfGridData.Generate(bounds, cellSize);
 
-        /// <summary>Called by the baker when it has to create the output asset.</summary>
         public void SetOutput(SdfGridTextureSO gridTextureSo)
         {
             output = gridTextureSo;
         }
 
-        /// <summary>
-        /// Shrink-wraps the bounds around the given shapes plus the margin. Works from the same
-        /// shape data the baker uses, so what is fitted is exactly what gets baked.
-        /// </summary>
-        public void FitToShapes(IReadOnlyList<SdfShapeData> shapes)
+        public void FitToShapes(IReadOnlyList<SdfShapeData> shapesData)
         {
-            if (shapes.Count == 0)
+            if (shapesData.Count == 0)
             {
                 return;
             }
 
-            float3 min = float.PositiveInfinity;
-            float3 max = float.NegativeInfinity;
+            float3 minBound = float.PositiveInfinity;
+            float3 maxBound = float.NegativeInfinity;
 
-            foreach (SdfShapeData shape in shapes)
+            foreach (var shapeData in shapesData)
             {
-                // World-space AABB of a rotated box: each local axis contributes its half extent
-                // spread over the world axes by the absolute value of the rotation matrix column.
-                float3x3 localToWorld = new float3x3(math.inverse(shape.WorldToLocalRotation));
-                float3 half = shape.LocalHalfExtents;
-                float3 worldHalf = math.abs(localToWorld.c0) * half.x
-                                 + math.abs(localToWorld.c1) * half.y
-                                 + math.abs(localToWorld.c2) * half.z;
+                var localToWorld = new float3x3(math.inverse(shapeData.WorldToLocalRotation));
+                var half = shapeData.LocalHalfExtents;
+                var worldHalf = math.abs(localToWorld.c0) * half.x
+                                + math.abs(localToWorld.c1) * half.y
+                                + math.abs(localToWorld.c2) * half.z;
 
-                min = math.min(min, shape.Position - worldHalf);
-                max = math.max(max, shape.Position + worldHalf);
+                minBound = math.min(minBound, shapeData.Position - worldHalf);
+                maxBound = math.max(maxBound, shapeData.Position + worldHalf);
             }
 
-            min -= fitMargin;
-            max += fitMargin;
-            bounds = new Bounds((min + max) * 0.5f, max - min);
+            minBound -= fitMargin;
+            maxBound += fitMargin;
+            
+            bounds = new Bounds((minBound + maxBound) * 0.5f, maxBound - minBound);
         }
 
+        #region Gizmos
+        
         private void OnDrawGizmos()
         {
             Gizmos.color = new Color(0.2f, 0.8f, 1f, 0.6f);
             Gizmos.DrawWireCube(bounds.center, bounds.size);
         }
+
+        #endregion
     }
 }

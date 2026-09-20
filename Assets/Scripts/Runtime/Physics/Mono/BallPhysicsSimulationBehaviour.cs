@@ -16,19 +16,11 @@ namespace Scripts.Runtime.Physics.Mono
 {
     /// <summary>
     /// The one object that owns the simulation: the loaded field, the two ball arrays, and the job
-    /// handle. There is nothing per ball here; balls are rows in two arrays.
-    ///
-    /// Frame flow: Update decides how many fixed substeps this frame owes and schedules the job;
-    /// LateUpdate waits for it. Between LateUpdate and the next Update the arrays are safe to read
-    /// on the main thread, which is when the renderer (Phase 4) uploads positions.
+    /// handle.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class BallPhysicsSimulationBehaviour : MonoBehaviour
     {
-        /// <summary>
-        /// Balls per work item handed to a worker thread. ~156 items at 10k balls: enough for the
-        /// cores to balance the uneven cost of balls in contact against balls in free fall.
-        /// </summary>
         private const int JobBatchSize = 64;
 
         [SerializeField]
@@ -45,127 +37,114 @@ namespace Scripts.Runtime.Physics.Mono
         [SerializeField]
         private BallPhysicsSettingsData physicsSettings = BallPhysicsSettingsData.Default;
 
-        private SdfBakedFieldData field;
-        private NativeArray<float3> positions;
-        private NativeArray<float3> velocities;
-        private JobHandle physicsJob;
-        private bool isRunning;
+        private SdfBakedFieldData _fieldData;
+        private NativeArray<float3> _positions;
+        private NativeArray<float3> _velocities;
+        private JobHandle _physicsJob;
+        private bool _isRunning;
 
-        /// <summary>Simulated time not yet consumed by whole substeps.</summary>
-        private float timeDebt;
-
-        private uint frameSeed;
-        private readonly Stopwatch jobStopwatch = new Stopwatch();
+        private float _timeDebt;
+        private uint _frameSeed;
+        
+        private readonly Stopwatch _jobStopwatch = new();
 
         public int Count => ballCount;
         public float Radius => physicsSettings.Radius;
 
-        /// <summary>Wall time from scheduling the job to its completion, for the on-screen readout.</summary>
         public double LastJobMilliseconds { get; private set; }
 
-        /// <summary>Fixed substeps taken last frame; 0 when the frame was faster than the fixed rate.</summary>
         public int LastStepCount { get; private set; }
 
         public float FixedDeltaTime => physicsSettings.FixedDeltaTime;
 
-        /// <summary>The loaded field's grid, for the on-screen readout.</summary>
-        public SdfGridData FieldGrid => field.Grid;
+        public SdfGridData FieldGrid => _fieldData.Grid;
 
-        /// <summary>
-        /// Current positions, for the renderer to upload. Valid to read between LateUpdate and the next
-        /// Update, i.e. after the job has completed and before the next one is scheduled. Exposed as
-        /// the array itself because GraphicsBuffer.SetData takes a NativeArray, not a ReadOnly view;
-        /// callers must treat it as read-only.
-        /// </summary>
-        public NativeArray<float3> Positions => positions;
+        public NativeArray<float3> Positions => _positions;
 
         private void Start()
         {
             physicsSettings.Clamp();
-            field = SdfBakedFieldLoader.Load(sdfAsset, Allocator.Persistent);
+            _fieldData = SdfBakedFieldLoader.Load(sdfAsset, Allocator.Persistent);
+            
             AllocateNativeArrays(ballCount);
             SpawnAllBalls();
-            isRunning = true;
+            
+            _isRunning = true;
         }
 
         private void Update()
         {
-            if (!isRunning)
+            if (!_isRunning)
             {
                 return;
             }
 
-            // Live tweaking in the inspector is allowed; make sure the job never sees nonsense.
             physicsSettings.Clamp();
 
-            // Fixed-step accumulator. Whole substeps are taken out of the debt; the cap turns an
-            // overloaded frame into slow motion instead of more work, and the leftover debt is
-            // capped too so a long stall does not become a burst of catch-up steps afterwards.
-            timeDebt += Time.deltaTime;
-            int steps = math.min((int)(timeDebt / physicsSettings.FixedDeltaTime), physicsSettings.MaxStepsPerFrame);
-            timeDebt = math.min(timeDebt - steps * physicsSettings.FixedDeltaTime, physicsSettings.FixedDeltaTime);
+            _timeDebt += Time.deltaTime;
+            int steps = math.min((int)(_timeDebt / physicsSettings.FixedDeltaTime), physicsSettings.MaxStepsPerFrame);
+            _timeDebt = math.min(_timeDebt - steps * physicsSettings.FixedDeltaTime, physicsSettings.FixedDeltaTime);
+            
             LastStepCount = steps;
             
             if (steps == 0)
             {
-                return; // faster than the fixed rate this frame: nothing to simulate yet
+                return;
             }
 
-            frameSeed++;
-            jobStopwatch.Restart();
+            _frameSeed++;
+            _jobStopwatch.Restart();
             
-            physicsJob = new BallPhysicsJob
+            _physicsJob = new BallPhysicsJob
             {
-                SdfField = field,
+                SdfField = _fieldData,
                 PhysicsSettings = physicsSettings,
                 StepsThisFrame = steps,
-                FrameSeed = frameSeed,
-                Positions = positions,
-                Velocities = velocities,
+                FrameSeed = _frameSeed,
+                Positions = _positions,
+                Velocities = _velocities,
             }.Schedule(ballCount, JobBatchSize);
         }
 
         private void LateUpdate()
         {
-            if (!isRunning)
+            if (!_isRunning)
             {
                 return;
             }
 
-            physicsJob.Complete();
-            jobStopwatch.Stop();
-            LastJobMilliseconds = jobStopwatch.Elapsed.TotalMilliseconds;
+            _physicsJob.Complete();
+            _jobStopwatch.Stop();
+            LastJobMilliseconds = _jobStopwatch.Elapsed.TotalMilliseconds;
         }
 
         private void OnDestroy()
         {
-            // A job must never outlive the memory it reads; complete before freeing anything.
-            physicsJob.Complete();
-            isRunning = false;
+            _physicsJob.Complete();
+            _isRunning = false;
 
-            if (positions.IsCreated) 
-                positions.Dispose();
+            if (_positions.IsCreated) 
+                _positions.Dispose();
             
-            if (velocities.IsCreated) 
-                velocities.Dispose();
+            if (_velocities.IsCreated) 
+                _velocities.Dispose();
             
-            if (field.Distances.IsCreated) 
-                field.Distances.Dispose();
+            if (_fieldData.Distances.IsCreated) 
+                _fieldData.Distances.Dispose();
         }
 
-        /// <summary>Puts every ball back in the spawn box at rest. The "Reset" of the on-screen panel.</summary>
         public void Respawn()
         {
-            physicsJob.Complete();
+            _physicsJob.Complete();
             SpawnAllBalls();
         }
 
-        /// <summary>Changes the ball count. Reallocates once, then respawns; not a per-frame operation.</summary>
         public void Resize(int newCount)
         {
-            physicsJob.Complete();
-            positions.Dispose();
-            velocities.Dispose();
+            _physicsJob.Complete();
+            _positions.Dispose();
+            _velocities.Dispose();
+            
             ballCount = math.max(newCount, 1);
             AllocateNativeArrays(ballCount);
             SpawnAllBalls();
@@ -173,46 +152,41 @@ namespace Scripts.Runtime.Physics.Mono
 
         private void AllocateNativeArrays(int count)
         {
-            // Uninitialised because SpawnAll writes every element before anything reads them.
-            positions = new NativeArray<float3>(count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-            velocities = new NativeArray<float3>(count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            _positions = new NativeArray<float3>(count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            _velocities = new NativeArray<float3>(count, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
         }
 
         private void SpawnAllBalls()
         {
-            // Random(0) is invalid by design of the generator; 1 is the smallest usable seed.
             var random = new Random(math.max(seed, 1u));
             for (int i = 0; i < ballCount; i++)
             {
-                positions[i] = random.NextFloat3(physicsSettings.SpawnMin, physicsSettings.SpawnMax);
-                velocities[i] = float3.zero;
+                _positions[i] = random.NextFloat3(physicsSettings.SpawnMin, physicsSettings.SpawnMax);
+                _velocities[i] = float3.zero;
             }
         }
 
+        #region Gizmos and Editor
+        
         private void OnDrawGizmos()
         {
             DrawSpawnAndKillGizmos();
         }
 
-        /// <summary>
-        /// Where balls come from and where they are taken away: the spawn box as a wire cuboid, the
-        /// kill height as a faint red sheet under it. Configuration, so it draws in edit mode too.
-        /// </summary>
         private void DrawSpawnAndKillGizmos()
         {
-            float3 spawnMin = math.min(physicsSettings.SpawnMin, physicsSettings.SpawnMax);
-            float3 spawnMax = math.max(physicsSettings.SpawnMin, physicsSettings.SpawnMax);
-            float3 spawnSize = spawnMax - spawnMin;
-            float3 spawnCentre = (spawnMin + spawnMax) * 0.5f;
+            var spawnMin = math.min(physicsSettings.SpawnMin, physicsSettings.SpawnMax);
+            var spawnMax = math.max(physicsSettings.SpawnMin, physicsSettings.SpawnMax);
+            var spawnSize = spawnMax - spawnMin;
+            var spawnCentre = (spawnMin + spawnMax) * 0.5f;
 
             Gizmos.color = new Color(0.3f, 0.9f, 0.2f, 0.5f);
             Gizmos.DrawWireCube(spawnCentre, spawnSize);
 
-            // The kill height is an infinite plane; draw it with the spawn footprint plus a margin
-            // so it reads as "below the action" without covering the whole scene view.
             const float killSheetPadding = 2f;
-            float3 killCentre = new float3(spawnCentre.x, physicsSettings.KillHeight, spawnCentre.z);
-            float3 killSize = new float3(spawnSize.x + killSheetPadding * 2f, 0f, spawnSize.z + killSheetPadding * 2f);
+            
+            var killCentre = new float3(spawnCentre.x, physicsSettings.KillHeight, spawnCentre.z);
+            var killSize = new float3(spawnSize.x + killSheetPadding * 2f, 0f, spawnSize.z + killSheetPadding * 2f);
 
             Gizmos.color = new Color(1f, 0.2f, 0.2f, 0.12f);
             Gizmos.DrawCube(killCentre, killSize);
@@ -220,21 +194,16 @@ namespace Scripts.Runtime.Physics.Mono
             Gizmos.DrawWireCube(killCentre, killSize);
         }
 
-        /// <summary>
-        /// One pass over the arrays with the numbers the brief asks us to prove: nothing sinks,
-        /// nothing floats, nothing buzzes once settled. Uses the field itself as the reference so
-        /// the check does not depend on knowing where the plane is.
-        /// </summary>
         [ContextMenu("Log Stats")]
         private void LogStats()
         {
-            if (!isRunning)
+            if (!_isRunning)
             {
                 Debug.Log("Simulation not running.");
                 return;
             }
 
-            physicsJob.Complete();
+            _physicsJob.Complete();
 
             const float sunkTolerance = 0.005f;      // deeper than this counts as sunk
             const float contactBand = 0.002f;        // within this of touching counts as resting on a surface
@@ -246,9 +215,9 @@ namespace Scripts.Runtime.Physics.Mono
 
             for (int i = 0; i < ballCount; i++)
             {
-                float3 p = positions[i];
-                float speed = math.length(velocities[i]);
-                float clearance = field.Sample(p).Distance - physicsSettings.Radius; // 0 = exactly touching
+                var p = _positions[i];
+                float speed = math.length(_velocities[i]);
+                float clearance = _fieldData.Sample(p).Distance - physicsSettings.Radius; // 0 = exactly touching
 
                 minClearance = math.min(minClearance, clearance);
                 if (clearance < -sunkTolerance) sunk++;
@@ -258,7 +227,7 @@ namespace Scripts.Runtime.Physics.Mono
                     inContact++;
                     maxContactSpeed = math.max(maxContactSpeed, speed);
                 }
-                if (math.any(p < field.Grid.BoundsMin) || math.any(p > field.Grid.BoundsMax)) outsideVolume++;
+                if (math.any(p < _fieldData.Grid.BoundsMin) || math.any(p > _fieldData.Grid.BoundsMax)) outsideVolume++;
             }
 
             Debug.Log(
@@ -267,5 +236,7 @@ namespace Scripts.Runtime.Physics.Mono
                 $"max speed among them {maxContactSpeed * 100f:F2} cm/s | settled (< {settledSpeed * 100f} cm/s): {settled:N0} | " +
                 $"outside field volume: {outsideVolume} | last job {LastJobMilliseconds:F2} ms", this);
         }
+        
+        #endregion
     }
 }

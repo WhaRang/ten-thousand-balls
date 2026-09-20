@@ -20,14 +20,12 @@ namespace Scripts.Editor.Sdf.Utils
 {
     /// <summary>
     /// The editor-time bake step: scene shapes in, committed <see cref="SdfGridTextureSO"/> asset out.
-    /// Never runs at load or per frame; it is triggered from the <see cref="SdfBakeAreaBehaviour"/>
-    /// inspector. Nothing tracks the scene: re-bake by hand after changing a shape or the settings.
     /// </summary>
     internal static class SdfBaker
     {
-        private const string DefaultAssetPath = "Assets/Scripts/Baked/SceneSdf.asset";
+        private const string DefaultAssetPath = "Assets/ScriptableObjects/Baked/SceneSdf.asset";
+        private const string DefaultSdfTextureName = "SdfTexture";
 
-        /// <summary>Texture3D cannot exceed this per axis, and the baker refuses earlier than that on memory.</summary>
         private const int MaxResolutionPerAxis = 2048;
         private const long MaxSampleBytes = 256L * 1024 * 1024;
 
@@ -40,31 +38,30 @@ namespace Scripts.Editor.Sdf.Utils
 
         public static void Bake(SdfBakeAreaBehaviour areaBehaviour)
         {
-            SdfShapeData[] shapes = CollectShapeData();
-            if (shapes.Length == 0)
+            var shapesData = CollectShapeData();
+            if (shapesData.Length == 0)
             {
                 throw new InvalidOperationException("No SdfShape components in the open scenes; nothing to bake.");
             }
 
-            SdfGridData gridData = areaBehaviour.GridData;
+            var gridData = areaBehaviour.GridData;
             ValidateGridSize(gridData);
 
             var stopwatch = Stopwatch.StartNew();
-            NativeArray<float> distances = GenerateGridDistances(gridData, shapes);
+            var distances = GenerateGridDistances(gridData, shapesData);
             long jobMilliseconds = stopwatch.ElapsedMilliseconds;
 
-            // From here on the only job of the try is to guarantee the native array is freed.
             try
             {
-                Texture3D texture = CreateTexture(gridData, distances);
-                SdfGridTextureSO gridTextureSo = GetOrCreateOutput(areaBehaviour);
+                var texture = CreateTexture(gridData, distances);
+                var gridTextureSo = GetOrCreateOutput(areaBehaviour);
                 ReplaceBakedTexture(gridTextureSo, texture);
                 
                 gridTextureSo.AssignBake(gridData, texture);
                 EditorUtility.SetDirty(gridTextureSo);
                 AssetDatabase.SaveAssets();
 
-                ReportBake(gridTextureSo, distances, shapes, jobMilliseconds, stopwatch.ElapsedMilliseconds);
+                ReportBake(gridTextureSo, distances, shapesData, jobMilliseconds, stopwatch.ElapsedMilliseconds);
             }
             finally
             {
@@ -72,16 +69,15 @@ namespace Scripts.Editor.Sdf.Utils
             }
         }
 
-        /// <summary>Snapshots every shape in the open scenes.</summary>
         internal static SdfShapeData[] CollectShapeData()
         {
-            SdfShapeBehaviour[] components = Object.FindObjectsByType<SdfShapeBehaviour>(FindObjectsSortMode.None);
-            var data = new SdfShapeData[components.Length];
-            for (int i = 0; i < components.Length; i++)
+            var sdfShapeComponents = Object.FindObjectsByType<SdfShapeBehaviour>(FindObjectsSortMode.None);
+            var shapeData = new SdfShapeData[sdfShapeComponents.Length];
+            for (int i = 0; i < sdfShapeComponents.Length; i++)
             {
-                data[i] = components[i].ToData();
+                shapeData[i] = sdfShapeComponents[i].ToData();
             }
-            return data;
+            return shapeData;
         }
 
         private static void ValidateGridSize(SdfGridData gridData)
@@ -100,50 +96,44 @@ namespace Scripts.Editor.Sdf.Utils
             }
         }
 
-        private static NativeArray<float> GenerateGridDistances(SdfGridData gridData, SdfShapeData[] shapes)
+        private static NativeArray<float> GenerateGridDistances(SdfGridData gridData, SdfShapeData[] shapesData)
         {
-            // TempJob: freed right after the job. Uninitialised: every slot is written by the job.
-            var shapesNative = new NativeArray<SdfShapeData>(shapes, Allocator.TempJob);
-            var distances = new NativeArray<float>(gridData.SampleCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var shapesDataNative = new NativeArray<SdfShapeData>(shapesData, Allocator.TempJob);
+            var distancesNative = new NativeArray<float>(gridData.SampleCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
             try
             {
                 new SdfShapesBakeJob
                 {
                     GridData = gridData,
-                    Shapes = shapesNative,
-                    Distances = distances,
+                    Shapes = shapesDataNative,
+                    Distances = distancesNative,
                 }.Schedule(gridData.SampleCount, JobBatchSize).Complete();
             }
             finally
             {
-                shapesNative.Dispose();
+                shapesDataNative.Dispose();
             }
 
-            return distances;
+            return distancesNative;
         }
 
         private static Texture3D CreateTexture(SdfGridData gridData, NativeArray<float> distances)
         {
-            int3 res = gridData.Resolution;
+            var gridResolution = gridData.Resolution;
 
-            // RFloat keeps the exact baked values. No mip chain: the field is sampled at one
-            // resolution and mips would only cost memory. Clamp and bilinear are irrelevant to
-            // the CPU sampler but make the inspector preview and any debug shader behave.
-            var texture = new Texture3D(res.x, res.y, res.z, TextureFormat.RFloat, mipChain: false)
+            var newTexture = new Texture3D(gridResolution.x, gridResolution.y, gridResolution.z, TextureFormat.RFloat, mipChain: false)
             {
-                name = "SdfTexture",
+                name = DefaultSdfTextureName,
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Bilinear,
             };
 
             // Same memory order as SdfGrid.Flatten, so the array goes in as-is.
-            texture.SetPixelData(distances, mipLevel: 0);
-
-            // makeNoLongerReadable: false keeps the CPU copy, which is what the runtime reads
-            // into its NativeArray. Dropping it would leave only the GPU copy, useless to a job.
-            texture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
-            return texture;
+            newTexture.SetPixelData(distances, mipLevel: 0);
+            newTexture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+            
+            return newTexture;
         }
 
         private static SdfGridTextureSO GetOrCreateOutput(SdfBakeAreaBehaviour areaBehaviour)
@@ -153,22 +143,24 @@ namespace Scripts.Editor.Sdf.Utils
                 return areaBehaviour.Output;
             }
 
-            var pathToDirectory = Path.GetDirectoryName(DefaultAssetPath);
+            string pathToDirectory = Path.GetDirectoryName(DefaultAssetPath);
             if (pathToDirectory == null)
             {
                 throw new InvalidPathException("Path to directory cannot be null.");
             }
 
             Directory.CreateDirectory(pathToDirectory);
-            var volume = ScriptableObject.CreateInstance<SdfGridTextureSO>();
-            AssetDatabase.CreateAsset(volume, DefaultAssetPath);
+            
+            var sdfGridTexture = ScriptableObject.CreateInstance<SdfGridTextureSO>();
+            AssetDatabase.CreateAsset(sdfGridTexture, DefaultAssetPath);
 
             Undo.RecordObject(areaBehaviour, "Assign SDF output");
-            areaBehaviour.SetOutput(volume);
+            areaBehaviour.SetOutput(sdfGridTexture);
+            
             EditorUtility.SetDirty(areaBehaviour);
             EditorSceneManager.MarkSceneDirty(areaBehaviour.gameObject.scene);
             
-            return volume;
+            return sdfGridTexture;
         }
 
         /// <summary>
@@ -177,7 +169,7 @@ namespace Scripts.Editor.Sdf.Utils
         /// </summary>
         private static void ReplaceBakedTexture(SdfGridTextureSO gridTextureSo, Texture3D texture)
         {
-            Texture3D previous = gridTextureSo.Texture;
+            var previous = gridTextureSo.Texture;
             if (previous != null)
             {
                 AssetDatabase.RemoveObjectFromAsset(previous);
@@ -187,41 +179,36 @@ namespace Scripts.Editor.Sdf.Utils
             AssetDatabase.AddObjectToAsset(texture, gridTextureSo);
         }
 
-        /// <summary>
-        /// Logs what was baked and checks the two signs that can be asserted about any scene:
-        /// every shape's centre must read as inside, and the volume's corners must read as
-        /// outside (they are past the fit margin). Reads the baked array, not the analytic
-        /// functions, so it tests what will actually ship.
-        /// </summary>
-        private static void ReportBake(SdfGridTextureSO gridTextureSo, NativeArray<float> distances, SdfShapeData[] shapes, long jobMilliseconds, long totalMilliseconds)
+        private static void ReportBake(SdfGridTextureSO gridTextureSo, NativeArray<float> distances, SdfShapeData[] shapesData, long jobMilliseconds, long totalMilliseconds)
         {
-            SdfGridData gridData = gridTextureSo.GridData;
-            float min = float.PositiveInfinity, max = float.NegativeInfinity;
+            var gridData = gridTextureSo.GridData;
+            float minDistance = float.PositiveInfinity;
+            float maxDistance = float.NegativeInfinity;
             
-            foreach (var d in distances)
+            foreach (float d in distances)
             {
-                min = math.min(min, d);
-                max = math.max(max, d);
+                minDistance = math.min(minDistance, d);
+                maxDistance = math.max(maxDistance, d);
             }
 
             long bytes = (long)distances.Length * sizeof(float);
             Debug.Log($"SDF baked: {gridData.Resolution.x}x{gridData.Resolution.y}x{gridData.Resolution.z} @ {gridData.CellSize} m, " +
                       $"{distances.Length:N0} samples ({bytes / (1024f * 1024f):F1} MB), " +
-                      $"{shapes.Length} shape(s), job {jobMilliseconds} ms / total {totalMilliseconds} ms, range [{min:F3}, {max:F3}] m.", gridTextureSo);
+                      $"{shapesData.Length} shape(s), job {jobMilliseconds} ms / total {totalMilliseconds} ms, range [{minDistance:F3}, {maxDistance:F3}] m.", gridTextureSo);
 
-            foreach (SdfShapeData shape in shapes)
+            foreach (var shapeData in shapesData)
             {
-                float atCentre = NearestSample(gridData, distances, shape.Position);
+                float atCentre = NearestSample(gridData, distances, shapeData.Position);
                 if (atCentre >= 0f)
                 {
-                    Debug.LogWarning($"SDF sign check: {shape.Kind} centre at {shape.Position} reads {atCentre:F3}, expected negative (inside).", gridTextureSo);
+                    Debug.LogWarning($"SDF sign check: {shapeData.Kind} centre at {shapeData.Position} reads {atCentre:F3}, expected negative (inside).", gridTextureSo);
                 }
             }
 
             for (int corner = 0; corner < 8; corner++)
             {
-                bool3 useMax = new bool3((corner & 1) != 0, (corner & 2) != 0, (corner & 4) != 0);
-                float3 cornerPoint = math.select(gridData.BoundsMin, gridData.BoundsMax, useMax);
+                var useMax = new bool3((corner & 1) != 0, (corner & 2) != 0, (corner & 4) != 0);
+                var cornerPoint = math.select(gridData.BoundsMin, gridData.BoundsMax, useMax);
                
                 float atCorner = NearestSample(gridData, distances, cornerPoint);
                 if (atCorner <= 0f)
@@ -233,7 +220,7 @@ namespace Scripts.Editor.Sdf.Utils
 
         private static float NearestSample(SdfGridData gridData, NativeArray<float> distances, float3 worldPoint)
         {
-            int3 sample = math.clamp((int3)math.round(gridData.WorldToGrid(worldPoint)), 0, gridData.Resolution - 1);
+            var sample = math.clamp((int3)math.round(gridData.WorldToGrid(worldPoint)), 0, gridData.Resolution - 1);
             return distances[gridData.Flatten(sample)];
         }
     }

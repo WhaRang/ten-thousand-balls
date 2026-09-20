@@ -5,17 +5,7 @@ using UnityEngine;
 namespace Scripts.Runtime.Rendering.Utils
 {
     /// <summary>
-    /// Builds a unit sphere with the fewest triangles for a given smoothness: an icosahedron whose
-    /// triangles are split into four, with every new vertex pushed back onto the sphere.
-    ///
-    ///   level 0:  12 vertices /   20 triangles
-    ///   level 1:  42 vertices /   80 triangles   (default: 10k balls = 800k triangles)
-    ///   level 2: 162 vertices /  320 triangles
-    ///   level 3: 642 vertices / 1280 triangles   (Unity's built-in sphere is 760 triangles)
-    ///
-    /// Runs once at startup; the managed lists it allocates are gone before the first frame.
-    /// The mesh has positions and normals only. Normals equal positions on a unit sphere, so the
-    /// shader needs no normal transform, and nothing reads UVs or tangents.
+    /// Builds a unit sphere with the fewest triangles for a given smoothness.
     /// </summary>
     public static class IcosphereMeshBuilder
     {
@@ -38,19 +28,14 @@ namespace Scripts.Runtime.Rendering.Utils
 
             var mesh = new Mesh { name = $"Icosphere L{subdivisions}" };
             mesh.SetVertices(vertices);
-            mesh.SetNormals(vertices); // unit sphere: the normal at a vertex is the vertex itself
+            mesh.SetNormals(vertices);
             mesh.SetTriangles(triangles, submesh: 0);
             mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 2f);
 
-            // Push to the GPU and drop the CPU copy: nothing reads the mesh back.
             mesh.UploadMeshData(markNoLongerReadable: true);
             return mesh;
         }
 
-        /// <summary>
-        /// The twelve vertices of an icosahedron are the corners of three mutually perpendicular
-        /// golden rectangles (1 × φ). The twenty faces connect them; five meet at every vertex.
-        /// </summary>
         private static void AddIcosahedron(List<Vector3> vertices, List<int> triangles)
         {
             float phi = (1f + math.sqrt(5f)) * 0.5f;
@@ -79,11 +64,6 @@ namespace Scripts.Runtime.Rendering.Utils
             });
         }
 
-        /// <summary>
-        /// Splits every triangle into four using the midpoints of its edges. Midpoints are cached
-        /// by edge so the two triangles sharing an edge get the same vertex: no duplicates, no
-        /// cracks, and the vertex count stays at 10·4ⁿ + 2.
-        /// </summary>
         private static List<int> Subdivide(List<Vector3> vertices, List<int> triangles)
         {
             var midpointByEdge = new Dictionary<long, int>(triangles.Count);
@@ -107,17 +87,16 @@ namespace Scripts.Runtime.Rendering.Utils
 
         private static int Midpoint(int a, int b, List<Vector3> vertices, Dictionary<long, int> cache)
         {
-            // Order the pair so (a, b) and (b, a) hit the same key.
             long key = ((long)math.min(a, b) << 32) | (uint)math.max(a, b);
             if (cache.TryGetValue(key, out int existing))
             {
                 return existing;
             }
 
-            // Normalising projects the midpoint from the chord back onto the sphere.
             vertices.Add(((vertices[a] + vertices[b]) * 0.5f).normalized);
             int index = vertices.Count - 1;
             cache[key] = index;
+            
             return index;
         }
 
@@ -130,11 +109,11 @@ namespace Scripts.Runtime.Rendering.Utils
         {
             for (int i = 0; i < triangles.Count; i += 3)
             {
-                Vector3 a = vertices[triangles[i]];
-                Vector3 b = vertices[triangles[i + 1]];
-                Vector3 c = vertices[triangles[i + 2]];
-                Vector3 faceNormal = Vector3.Cross(b - a, c - a);
-                Vector3 centroid = a + b + c; // direction from the origin is all that matters
+                var a = vertices[triangles[i]];
+                var b = vertices[triangles[i + 1]];
+                var c = vertices[triangles[i + 2]];
+                var faceNormal = Vector3.Cross(b - a, c - a);
+                var centroid = a + b + c;
 
                 if (Vector3.Dot(faceNormal, centroid) < 0f)
                 {
